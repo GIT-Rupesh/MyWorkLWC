@@ -1,53 +1,106 @@
-import { LightningElement, api, wire, track } from 'lwc';
-import getBoats from '@salesforce/apex/BoatSearchResults.getBoats';
+import { LightningElement, wire, api, track } from 'lwc';
+import getBoats from '@salesforce/apex/BoatDataService.getBoats';
+import { updateRecord } from 'lightning/uiRecordApi';
+import { ShowToastEvent } from 'lightning/platformShowToastEvent';
+import { refreshApex } from '@salesforce/apex';
+import { publish, MessageContext } from 'lightning/messageService';
+import BoatMC from '@salesforce/messageChannel/BoatMessageChannel__c';
 
+export default class BoatSearchResults extends LightningElement {
+    boatTypeId = '';
+    @track boats;
+    @track draftValues = [];
+    selectedBoatId = '';
+    isLoading = false;
+    error = undefined;
+    wiredBoatsResult;
+    
+    @wire(MessageContext) messageContext;
 
-export default class BoatSearchResultsLwc extends LightningElement {
-    @track selectedId = '';
-    @api boatTypeId;
-    @track boats = '';
-    @wire(getBoats, {boatTypeId: '$boatTypeId'})
-    loadBoats({data, error}) {
-        if (data) {
-            if (data.length > 0) {
-                this.boats = data;
-            }
-            else {
-                this.boats = '';
-            }
+    columns = [
+        { label: 'Name', fieldName: 'Name', type: 'text', editable: 'true'  },
+        { label: 'Length', fieldName: 'Length__c', type: 'number', editable: 'true' },
+        { label: 'Price', fieldName: 'Price__c', type: 'currency', editable: 'true' },
+        { label: 'Description', fieldName: 'Description__c', type: 'text', editable: 'true' }
+    ];
+
+    @api
+    searchBoats(boatTypeId) {
+        this.isLoading = true;
+        this.notifyLoading(this.isLoading);
+        this.boatTypeId = boatTypeId;
+    }
+
+    @wire(getBoats, { boatTypeId: '$boatTypeId' })
+    wiredBoats(result) {
+        console.log('boatTypeId ::: ','$boatTypeId');
+        this.boats = result;
+        if (result.error) {
+            this.error = result.error;
+            this.boats = undefined;
         }
-        else if (error) {
-            console.log(error);
+        this.isLoading = false;
+        this.notifyLoading(this.isLoading);
+    }
+
+    updateSelectedTile(event) {
+        this.selectedBoatId = event.detail.boatId;
+        this.sendMessageService(this.selectedBoatId);
+    }
+
+    handleSave(event) {
+        this.notifyLoading(true);
+       const recordInputs = event.detail.draftValues.slice().map(draft=>{
+           const fields = Object.assign({}, draft);
+           return {fields};
+       });
+
+       console.log(recordInputs);
+       const promises = recordInputs.map(recordInput => updateRecord(recordInput));
+       Promise.all(promises).then(res => {
+           this.dispatchEvent(
+               new ShowToastEvent({
+                   title: 'Success',
+                   message: 'Ship It!',
+                   variant: 'success'
+               })
+           );
+           this.draftValues = [];
+           return this.refresh();
+       }).catch(error => {
+           this.error = error;
+           this.dispatchEvent(
+                new ShowToastEvent({
+                    title: 'Error',
+                    message: 'Contact System Admin!',
+                    variant: 'error'
+                })
+            );
+            this.notifyLoading(false);
+       }).finally(() => {
+            this.draftValues = [];
+        });
+    }
+
+    @api
+    async refresh() {
+        this.isLoading = true;
+        this.notifyLoading(this.isLoading);      
+        await refreshApex(this.boats);
+        this.isLoading = false;
+        this.notifyLoading(this.isLoading);        
+    }
+
+
+    notifyLoading(isLoading) {
+        if (isLoading) {
+            this.dispatchEvent(new CustomEvent('loading'));
+        } else {
+            this.dispatchEvent(CustomEvent('doneloading'));
         }
     }
 
-    handleOnBoatSelect(event) {
-        this.selectedId = event.detail;
-
-        /*this.boats.forEach((element, index) => {
-            if (event.detail === element.Id) {
-                console.log('here');
-                //console.log(element);
-                //element.Name = 'Test';
-                //this.element.Name = 'Selected';
-                //this.boats[index].selected = true;
-                //element.selected = event.detail;
-                //console.log(element);
-                //console.log('selected ' + element.selected);
-            }
-            else {
-               // element.selected = false;
-            }
-        })
-        /*can't mutate data returned by apex. the idea is to put selected=true property to
-        the boat, which was selected in order to change border color. Facing error without
-        any useful information
-        perhaps this is an answer: "The wire service provisions an immutable stream of data to the component.
-         Each value in the stream is a newer version of the value that precedes it." from documentation.
-        **********
-        this is tricky in lwc. you need almost always specify it
-        console.log(selectedId) - will cause an error
-        while console.log(this.selectedId) will not
-        */
+     sendMessageService(boatId) { 
+        publish(this.messageContext, BoatMC, { recordId : boatId });
     }
 }

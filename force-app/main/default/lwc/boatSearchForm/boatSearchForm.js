@@ -1,41 +1,49 @@
-import { LightningElement, track, wire } from 'lwc';
-import { getListUi } from 'lightning/uiListApi';
-import BOAT_TYPE_OBJECT from '@salesforce/schema/BoatType__c';
-import { NavigationMixin } from 'lightning/navigation';
-
-export default class BoatSearchFormLwc extends NavigationMixin(LightningElement) {
-    @track boatTypes = [];
-    @wire(getListUi, { objectApiName: BOAT_TYPE_OBJECT, listViewApiName: 'All' })
-    loadBoatTypes({ error, data }) {
-        if (data) {
-            data.records.records.forEach(element => {
-                var type = {
-                    label: element.fields.Name.value,
-                    value: element.fields.Id.value,
-                }
-                this.boatTypes.push(type);
-            });
-        }
-        else if (error) {
-            console.log(error);
-        }
+import { LightningElement,wire,track } from 'lwc';
+import getBoatTypes from "@salesforce/apex/BoatDataService.getBoatTypes";
+export default class BoatSearchForm extends LightningElement {
+    selectedBoatTypeId = '';
+    value='';
+    // Private
+    error = undefined; 
+   
+    // Needs explicit track due to nested data
+    @track searchOptions;
+    label;
+    //value;
+    
+    // Wire a custom Apex method
+    @wire(getBoatTypes)
+      boatTypes({ error, data }) {
+      if (data) {
+         // console.log('Dataloaded',data);
+          this.searchOptions = data.map(type => {
+              // TODO: complete the logic
+            return {
+                label:type.Name,
+                value:type.Id
+            }     
+           
+         
+        });      
+        this.searchOptions.unshift({ label: 'All Types', value: '' });
+      } else if (error) {
+        this.searchOptions = undefined;
+        this.error = error;
+      }
     }
-
-    handleOnChange(event) {
-        const customEvent = new CustomEvent('typeselect', {
-            detail: event.target.value,
-        });
-        this.dispatchEvent(customEvent);
+    
+    // Fires event that the search option has changed.
+    // passes boatTypeId (value of this.selectedBoatTypeId) in the detail
+    handleSearchOptionChange(event) {
+      //  event.preventDefault();
+      // Create the const searchEvent
+      //const boatTypeId=event.detail.value;
+      this.selectedBoatTypeId=event.detail.value;
+      console.log('Selected Boat Type Id', this.selectedBoatTypeId);
+      // searchEvent must be the new custom event search
+      const searchEvent= new CustomEvent('search',{detail:this.selectedBoatTypeId});
+      //const searchEvent = new CustomEvent('search', {        detail: { boatTypeId: this.selectedBoatTypeId }      });
+      console.log('before dispatch event ', searchEvent);
+      this.dispatchEvent(searchEvent);
     }
-
-    addBoat() {
-        this[NavigationMixin.Navigate]({
-            type: 'standard__objectPage',
-            attributes: {
-                objectApiName: 'Boat__c',
-                actionName: 'new'
-            }
-        });
-    }
-
 }

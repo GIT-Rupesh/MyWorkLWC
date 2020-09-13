@@ -10,3 +10,8 @@ package.xml
 
 # LWC Jest
 **/__tests__/**
+force-app/main/default/lwc/otherComponents
+force-app/main/default/lwc/unitTest
+force-app/main/default/lwc/wireApex
+force-app/main/default/lwc/wireCPR
+force-app/main/default/lwc/wireLDS
