@@ -1,16 +1,29 @@
-import { LightningElement, track } from 'lwc';
-
-export default class BoatSearch extends LightningElement {
-    @track boatTypeId = '';
-
-    handleTypeSelect(event) {
-        console.log('inside event');
-        console.log('inside event - details ',event.detail);
-        this.boatTypeId = event.detail;
+import { LightningElement , track ,api} from 'lwc';
+import { NavigationMixin } from 'lightning/navigation';
+// imports
+export default class BoatSearch extends NavigationMixin(LightningElement) {
+    @track isLoading = true;
+    
+    handleLoading()
+    {
+        this.isLoading = true;
+    } 
+    handleDoneLoading()
+    {
+        this.isLoading = false;
     }
-
+    createNewBoat() {
+        this[NavigationMixin.Navigate]({
+            type: 'standard__objectPage',
+            attributes: {
+                objectApiName: 'Boat__c',
+                actionName: 'new'
+            }
+        });
+    }
+    searchBoats(event)
+    {
+        this.boatTypeId = event.detail.boatTypeId;
+        this.template.querySelector('c-boat-search-results').searchBoats(this.boatTypeId);
+    }
 }
-
-//to do
-//   create button
-//   on boatDetail full details button

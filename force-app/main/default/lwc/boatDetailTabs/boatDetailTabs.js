@@ -1,27 +1,24 @@
-// Custom Labels Imports
-// import labelDetails for Details
-// import labelReviews for Reviews
-// import labelAddReview for Add_Review
-// import labelFullDetails for Full_Details
-// import labelPleaseSelectABoat for Please_select_a_boat
-// Boat__c Schema Imports
-// import BOAT_ID_FIELD for the Boat Id
-// import BOAT_NAME_FIELD for the boat Name
-import { LightningElement, api,wire } from 'lwc';
-import labelDetails from '@salesforce/label/c.Details';
-import labelReviews from '@salesforce/label/c.Reviews';
+import { APPLICATION_SCOPE, MessageContext, subscribe } from 'lightning/messageService';
+import { NavigationMixin } from 'lightning/navigation';
+import { getRecord, getFieldValue } from 'lightning/uiRecordApi';
+import { LightningElement, api, track, wire } from 'lwc';
 import labelAddReview from '@salesforce/label/c.Add_Review';
+import labelDetails from '@salesforce/label/c.Details';
 import labelFullDetails from '@salesforce/label/c.Full_Details';
+import labelReviews from '@salesforce/label/c.Reviews';
 import labelPleaseSelectABoat from '@salesforce/label/c.Please_select_a_boat';
-import BOAT_ID_FIELD from '@salesforce/schema/Boat__c.Id';
-import BOAT_NAME_FIELD from '@salesforce/schema/Boat__c.Name';
-import { getRecord,getFieldValue } from 'lightning/uiRecordApi';
+import { refreshApex } from '@salesforce/apex';
 import BOATMC from '@salesforce/messageChannel/BoatMessageChannel__c';
-import { APPLICATION_SCOPE,MessageContext, subscribe } from 'lightning/messageService';
+import BOAT_TYPE_FIELD from '@salesforce/schema/Boat__c.BoatType__c';
+import BOAT_ID_FIELD from '@salesforce/schema/Boat__c.Id';
+import BOAT_DESCRIPTION_FIELD from '@salesforce/schema/Boat__c.Description__c';
+import BOAT_NAME_FIELD from '@salesforce/schema/Boat__c.Name';
+import BOAT_LENGTH_FIELD from '@salesforce/schema/Boat__c.Length__c';
+import BOAT_PRICE_FIELD from '@salesforce/schema/Boat__c.Price__c';
 const BOAT_FIELDS = [BOAT_ID_FIELD, BOAT_NAME_FIELD];
-import {NavigationMixin} from 'lightning/navigation';
 export default class BoatDetailTabs extends NavigationMixin(LightningElement) {
-  @api boatId;
+    @api boatId;
+  wiredRecord;
   label = {
     labelDetails,
     labelReviews,
@@ -46,8 +43,8 @@ export default class BoatDetailTabs extends NavigationMixin(LightningElement) {
   // Private
   subscription = null;
   // Initialize messageContext for Message Service
-  @wire(MessageContext)
-  messageContext;
+@wire(MessageContext)
+messageContext;
   
   // Subscribe to the message channel
   subscribeMC() {
@@ -67,4 +64,21 @@ export default class BoatDetailTabs extends NavigationMixin(LightningElement) {
   connectedCallback() { 
     this.subscribeMC();
   }
-}
+  
+  // Navigates to record page
+  navigateToRecordViewPage() {
+    this[NavigationMixin.Navigate]({
+      type: "standard__recordPage",
+      attributes: {
+          recordId: this.boatId,
+          actionName: "view"
+      }
+  });
+   }
+  
+  // Navigates back to the review list, and refreshes reviews component
+  handleReviewCreated() {
+    this.template.querySelector('lightning-tabset').activeTabValue = 'reviews';
+    this.template.querySelector(c-boat-reviews).refresh();
+   }
+} 

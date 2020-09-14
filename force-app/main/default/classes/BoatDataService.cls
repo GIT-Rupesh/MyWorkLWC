@@ -64,4 +64,31 @@ public with sharing class BoatDataService {
         }
         return similarBoats;
     }
+
+    @AuraEnabled
+	public static List<BoatReview__c> getAllReviews(Id boatId){
+		return 
+			[SELECT 
+				Id,
+				Name,
+				Comment__c,
+				Rating__c,
+				LastModifiedDate,
+				CreatedDate,
+				CreatedBy.Name,
+				CreatedBy.CompanyName,
+				CreatedBy.SmallPhotoUrl
+			FROM BoatReview__c
+			WHERE Boat__c = :boatId
+			ORDER BY CreatedDate DESC];
+	}
+
+    @AuraEnabled(cacheable=true)
+	public static List<Boat__c> getBoatsByLocation( Decimal latitude, Decimal longitude, Id boatTypeId){
+		List<Boat__c> boatsNearMeLst = [SELECT Name, Description__c, Geolocation__Latitude__s, Geolocation__Longitude__s, Picture__c, Contact__r.Name, 
+        BoatType__c, BoatType__r.Name, Length__c, Price__c 
+        FROM Boat__c WHERE Geolocation__Longitude__s =:longitude AND  Geolocation__Latitude__s =:latitude  AND BoatType__c = :boatTypeId WITH SECURITY_ENFORCED ];
+        
+        return boatsNearMeLst;
+	}
 }
